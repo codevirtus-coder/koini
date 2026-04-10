@@ -1,0 +1,23 @@
+﻿<configuration>
+  <springProfile name="!prod">
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder>
+        <pattern>%d{ISO8601} %-5level [%X{requestId}] [%X{userId}] [%X{userRole}] %logger - %msg%n</pattern>
+      </encoder>
+    </appender>
+    <root level="INFO">
+      <appender-ref ref="CONSOLE" />
+    </root>
+  </springProfile>
+
+  <springProfile name="prod">
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder>
+        <pattern>{"timestamp":"%d{ISO8601}","level":"%level","requestId":"%X{requestId}","userId":"%X{userId}","userRole":"%X{userRole}","logger":"%logger","message":"%msg"}%n</pattern>
+      </encoder>
+    </appender>
+    <root level="INFO">
+      <appender-ref ref="CONSOLE" />
+    </root>
+  </springProfile>
+</configuration>

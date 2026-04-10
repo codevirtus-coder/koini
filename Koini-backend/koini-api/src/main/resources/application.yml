@@ -1,0 +1,84 @@
+﻿spring:
+  application:
+    name: koini-backend
+  datasource:
+    url: ${KOINI_DB_URL}
+    username: ${KOINI_DB_USERNAME}
+    password: ${KOINI_DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  data:
+    redis:
+      host: ${KOINI_REDIS_HOST:localhost}
+      port: ${KOINI_REDIS_PORT:6379}
+      password: ${KOINI_REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 10
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+koini:
+  money:
+    kc-per-usd: ${KOINI_KC_PER_USD:100}
+  jwt:
+    secret: ${KOINI_JWT_SECRET}
+    access-token-ttl-ms: 900000
+    refresh-token-ttl-ms: 604800000
+  cors:
+    allowed-origins: ${KOINI_ALLOWED_ORIGINS}
+  sms:
+    username: ${KOINI_SMS_USERNAME}
+    api-key: ${KOINI_SMS_API_KEY}
+    templates:
+      topup: "Your KOINI wallet has been topped up with {amount}. New balance: {balance}."
+      payment-receipt: "Payment of {amount} received. Ref: {reference}."
+      payment-request: "Merchant requests {amount}. Reply 1 to approve."
+      withdrawal: "Withdrawal of {amount} confirmed. Ref: {reference}."
+      pin-lock: "Your PIN is locked for {minutes} minutes."
+      otp: "Your verification OTP is {otp}."
+  fees:
+    payment-rate: 1.5
+  points:
+    topup-multiplier: ${KOINI_TOPUP_POINTS_MULTIPLIER:1.0}
+  secrets:
+    master-key-base64: ${KOINI_SECRETS_MASTER_KEY_BASE64:}
+  pesepay:
+    base-url: ${KOINI_PESEPAY_BASE_URL:https://api.pesepay.com/api/payments-engine/v1}
+    initiate-path: ${KOINI_PESEPAY_INITIATE_PATH:/payments/initiate}
+    check-payment-path: ${KOINI_PESEPAY_CHECK_PATH:/payments/check-payment}
+    return-url: ${KOINI_PESEPAY_RETURN_URL:}
+    result-url: ${KOINI_PESEPAY_RESULT_URL:}
+    default-currency-code: ${KOINI_PESEPAY_CURRENCY:USD}
+
+logging:
+  level:
+    root: INFO
+    com.koini: DEBUG
+    org.springframework.security: WARN

@@ -1,0 +1,138 @@
+export const tokens = {
+  // Color palette
+  // Primary: Deep Indigo - trust, finance, technology
+  // Accent: Vivid Amber - energy, Zimbabwe, warmth
+  // Surface: Near-black dark theme base
+  color: {
+    primary: {
+      50: '#f3f3f7',
+      100: '#ededf1',
+      200: '#e0e0e6',
+      300: '#cfcfd8',
+      400: '#b0b0bc',
+      500: '#0b0b0b',
+      600: '#0b0b0b',
+      700: '#0b0b0b',
+      800: '#0b0b0b',
+      900: '#0b0b0b',
+      950: '#0b0b0b',
+    },
+    accent: {
+      50: '#f3f3f7',
+      100: '#ededf1',
+      200: '#e0e0e6',
+      300: '#cfcfd8',
+      400: '#b0b0bc',
+      500: '#0b0b0b',
+      600: '#0b0b0b',
+      700: '#0b0b0b',
+      800: '#0b0b0b',
+      900: '#0b0b0b',
+    },
+    success: {
+      50: '#f3f3f7',
+      500: '#0b0b0b',
+      700: '#0b0b0b',
+    },
+    warning: {
+      50: '#f3f3f7',
+      500: '#0b0b0b',
+      700: '#0b0b0b',
+    },
+    danger: {
+      50: '#f3f3f7',
+      500: '#0b0b0b',
+      700: '#0b0b0b',
+    },
+    surface: {
+      bg: '#f3f3f7',
+      card: '#ffffff',
+      cardHover: '#f6f6f6',
+      border: '#e5e5e5',
+      borderMd: '#d7d7d7',
+      overlay: '#0000000f',
+    },
+    text: {
+      primary: '#0b0b0b',
+      secondary: '#3f3f3f',
+      muted: '#6b6b6b',
+      inverse: '#ffffff',
+    },
+    credit: '#0b0b0b',
+    debit: '#0b0b0b',
+    pending: '#0b0b0b',
+    neutral: '#0b0b0b',
+  },
+  font: {
+    sans: '"Inter", "SF Pro Display", system-ui, sans-serif',
+    mono: '"JetBrains Mono", "Fira Code", monospace',
+  },
+  fontSize: {
+    xs: '0.75rem',
+    sm: '0.875rem',
+    base: '1rem',
+    md: '1.125rem',
+    lg: '1.25rem',
+    xl: '1.5rem',
+    '2xl': '1.875rem',
+    '3xl': '2.25rem',
+    '4xl': '3rem',
+    '5xl': '3.75rem',
+  },
+  weight: {
+    normal: 400,
+    medium: 500,
+    semibold: 600,
+    bold: 700,
+    extrabold: 800,
+  },
+  space: {
+    1: '0.25rem',
+    2: '0.5rem',
+    3: '0.75rem',
+    4: '1rem',
+    5: '1.25rem',
+    6: '1.5rem',
+    8: '2rem',
+    10: '2.5rem',
+    12: '3rem',
+    16: '4rem',
+    20: '5rem',
+  },
+  radius: {
+    sm: '0.375rem',
+    md: '0.625rem',
+    lg: '0.875rem',
+    xl: '1.125rem',
+    '2xl': '1.5rem',
+    full: '9999px',
+  },
+  shadow: {
+    sm: '0 1px 3px 0 rgba(31,27,22,0.08)',
+    md: '0 4px 12px -2px rgba(31,27,22,0.12)',
+    lg: '0 10px 30px -6px rgba(31,27,22,0.18)',
+    glow: '0 0 20px rgba(34,197,94,0.18)',
+    amber: '0 0 20px rgba(245,158,11,0.18)',
+  },
+  transition: {
+    fast: '120ms ease',
+    base: '200ms ease',
+    slow: '350ms ease',
+    spring: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+  },
+} as const;
+
+export const tw = {
+  card: 'bg-surface-card border border-surface-border rounded-xl p-5',
+  cardHover:
+    'bg-surface-card border border-surface-border rounded-xl p-5 hover:bg-surface-cardHover hover:border-surface-borderMd transition-colors duration-200 cursor-pointer',
+  input:
+    'w-full bg-surface-bg border border-surface-borderMd rounded-lg px-4 py-3 text-text-primary placeholder-text-muted text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200',
+  inputError: 'border-danger-500 focus:ring-danger-500',
+  label: 'block text-xs font-medium text-text-secondary uppercase tracking-wider mb-2',
+  errorMsg: 'text-xs text-danger-500 mt-1',
+  badge: 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium',
+  pageTitle: 'text-2xl font-bold text-text-primary',
+  sectionTitle: 'text-lg font-semibold text-text-primary',
+  amount: 'font-mono font-bold tabular-nums',
+} as const;

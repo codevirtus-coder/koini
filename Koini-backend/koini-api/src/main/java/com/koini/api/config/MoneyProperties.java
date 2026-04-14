@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "koini.money")
 public class MoneyProperties {
 
-  private long kcPerUsd = 100;
+  private long kcPerUsd = 10_000;
 
   public long getKcPerUsd() {
     return kcPerUsd;
@@ -15,4 +15,3 @@ public class MoneyProperties {
     this.kcPerUsd = kcPerUsd;
   }
 }
-

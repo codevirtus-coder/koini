@@ -4,8 +4,11 @@ import com.koini.api.dto.request.ApproveRequestRequest;
 import com.koini.api.dto.request.CreateRequestRequest;
 import com.koini.api.dto.request.GenerateCodeRequest;
 import com.koini.api.dto.request.RedeemCodeRequest;
+import com.koini.api.dto.response.CancelPaymentRequestResponse;
 import com.koini.api.dto.response.CreateRequestResponse;
 import com.koini.api.dto.response.GenerateCodeResponse;
+import com.koini.api.dto.response.MerchantPaymentRequestListResponse;
+import com.koini.api.dto.response.MerchantPaymentRequestResponse;
 import com.koini.api.dto.response.PaymentRequestStatusResponse;
 import com.koini.api.dto.response.RedeemCodeResponse;
 import com.koini.api.dto.response.TransactionResponse;
@@ -14,6 +17,7 @@ import com.koini.api.service.AuditService;
 import com.koini.api.service.IdempotencyService;
 import com.koini.api.service.RedisService;
 import com.koini.api.service.auth.AuthService;
+import com.koini.api.service.money.MoneyConversionService;
 import com.koini.core.domain.entity.PaymentCode;
 import com.koini.core.domain.entity.PaymentRequest;
 import com.koini.core.domain.entity.Transaction;
@@ -43,11 +47,15 @@ import com.koini.persistence.repository.WalletRepository;
 import com.koini.core.util.KoiniConstants;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -69,6 +77,7 @@ public class PaymentService {
   private final SmsService smsService;
   private final AuditService auditService;
   private final TransactionMapper transactionMapper;
+  private final MoneyConversionService moneyConversionService;
   private final double feeRate;
 
   public PaymentService(
@@ -84,6 +93,7 @@ public class PaymentService {
       SmsService smsService,
       AuditService auditService,
       TransactionMapper transactionMapper,
+      MoneyConversionService moneyConversionService,
       @Value("${koini.fees.payment-rate}") double feeRate
   ) {
     this.paymentCodeRepository = paymentCodeRepository;
@@ -98,6 +108,7 @@ public class PaymentService {
     this.smsService = smsService;
     this.auditService = auditService;
     this.transactionMapper = transactionMapper;
+    this.moneyConversionService = moneyConversionService;
     this.feeRate = feeRate;
   }
 
@@ -128,7 +139,7 @@ public class PaymentService {
         .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
     long feeKc = MoneyUtils.calculateFee(request.amountKc(), feeRate);
     long total = request.amountKc() + feeKc;
-    if (wallet.getBalanceKc() < total) {
+    if (wallet.getPoints() < total) {
       throw new InsufficientBalanceException("Insufficient balance");
     }
     String code = generateSixDigitCode();
@@ -148,9 +159,9 @@ public class PaymentService {
         code,
         paymentCode.getExpiresAt().toString(),
         request.amountKc(),
-        MoneyUtils.formatUsd(request.amountKc()),
+        moneyConversionService.formatUsd(request.amountKc()),
         feeKc,
-        MoneyUtils.formatUsd(feeKc),
+        moneyConversionService.formatUsd(feeKc),
         total);
     if (idempotencyKey != null) {
       idempotencyService.store("koini:idempotency:" + idempotencyKey, response,          Duration.ofHours(KoiniConstants.IDEMPOTENCY_TTL_HOURS));
@@ -184,11 +195,14 @@ public class PaymentService {
 
     Wallet passengerWallet = walletRepository.findByUserIdForUpdate(paymentCode.getHolder().getUserId())
         .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
+    Wallet merchantWallet = walletRepository.findByUserIdForUpdate(conductorId)
+        .orElseThrow(() -> new ResourceNotFoundException("Merchant wallet not found"));
     long total = paymentCode.getAmountKc() + paymentCode.getFeeKc();
-    if (passengerWallet.getBalanceKc() < total) {
+    if (passengerWallet.getPoints() < total) {
       throw new InsufficientBalanceException("Insufficient balance");
     }
-    passengerWallet.setBalanceKc(passengerWallet.getBalanceKc() - total);
+    debit(passengerWallet, total);
+    credit(merchantWallet, paymentCode.getAmountKc());
     paymentCode.setStatus(PaymentCodeStatus.REDEEMED);
     paymentCode.setRedeemedBy(User.builder().userId(conductorId).build());
     paymentCode.setRedeemedAt(LocalDateTime.now());
@@ -198,12 +212,12 @@ public class PaymentService {
     Transaction tx = Transaction.builder()
         .txType(TransactionType.FARE_PAYMENT)
         .fromWallet(passengerWallet)
-        .toWallet(null)
+        .toWallet(merchantWallet)
         .amountKc(paymentCode.getAmountKc())
         .feeKc(paymentCode.getFeeKc())
         .status(TransactionStatus.COMPLETED)
         .reference(reference)
-        .initiatedBy(paymentCode.getHolder())
+        .initiatedBy(User.builder().userId(conductorId).build())
         .description("Fare payment")
         .build();
     transactionRepository.save(tx);
@@ -217,7 +231,7 @@ public class PaymentService {
         tx.getTxId().toString(),
         reference,
         paymentCode.getAmountKc(),
-        MoneyUtils.formatUsd(paymentCode.getAmountKc()),
+        moneyConversionService.formatUsd(paymentCode.getAmountKc()),
         PhoneUtils.mask(paymentCode.getHolder().getPhone()),
         null);
     if (idempotencyKey != null) {
@@ -239,7 +253,7 @@ public class PaymentService {
     Wallet wallet = walletRepository.findByUserUserId(passenger.getUserId())
         .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
     long feeKc = MoneyUtils.calculateFee(request.amountKc(), feeRate);
-    if (wallet.getBalanceKc() < request.amountKc() + feeKc) {
+    if (wallet.getPoints() < request.amountKc() + feeKc) {
       throw new InsufficientBalanceException("Insufficient balance");
     }
     PaymentRequest paymentRequest = PaymentRequest.builder()
@@ -283,29 +297,49 @@ public class PaymentService {
         .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
     long feeKc = MoneyUtils.calculateFee(paymentRequest.getAmountKc(), feeRate);
     long total = paymentRequest.getAmountKc() + feeKc;
-    if (wallet.getBalanceKc() < total) {
+    if (wallet.getPoints() < total) {
       throw new InsufficientBalanceException("Insufficient balance");
     }
-    wallet.setBalanceKc(wallet.getBalanceKc() - total);
+    debit(wallet, total);
     paymentRequest.setStatus(PaymentReqStatus.APPROVED);
     paymentRequest.setRespondedAt(LocalDateTime.now());
     paymentRequestRepository.save(paymentRequest);
+
+    Wallet merchantWallet = walletRepository.findByUserIdForUpdate(paymentRequest.getConductor().getUserId())
+        .orElseThrow(() -> new ResourceNotFoundException("Merchant wallet not found"));
+    credit(merchantWallet, paymentRequest.getAmountKc());
     String reference = generateReference("FARE");
     Transaction tx = Transaction.builder()
         .txType(TransactionType.FARE_PAYMENT)
         .fromWallet(wallet)
+        .toWallet(merchantWallet)
         .amountKc(paymentRequest.getAmountKc())
         .feeKc(feeKc)
         .status(TransactionStatus.COMPLETED)
         .reference(reference)
         .initiatedBy(wallet.getUser())
         .description("Fare payment request")
+        .routeId(paymentRequest.getRouteId())
         .build();
     transactionRepository.save(tx);
     redisService.set("koini:req:" + paymentRequest.getRequestId(), "APPROVED",        Duration.ofSeconds(KoiniConstants.PAYMENT_REQUEST_TTL_SECONDS));
     smsService.sendGenericAlert(paymentRequest.getConductor().getPhone(),
         "Payment approved. Ref: " + reference);
     return transactionMapper.toResponse(tx);
+  }
+
+  private void debit(Wallet wallet, long amountKc) {
+    long points = wallet.getPoints();
+    if (points < amountKc) {
+      throw new InsufficientBalanceException("Insufficient balance");
+    }
+    wallet.setPoints(points - amountKc);
+    wallet.setBalanceKc(wallet.getPoints());
+  }
+
+  private void credit(Wallet wallet, long amountKc) {
+    wallet.setPoints(wallet.getPoints() + amountKc);
+    wallet.setBalanceKc(wallet.getPoints());
   }
 
   /**
@@ -344,6 +378,116 @@ public class PaymentService {
     String status = cached != null ? cached : paymentRequest.getStatus().name();
     String respondedAt = paymentRequest.getRespondedAt() != null ? paymentRequest.getRespondedAt().toString() : null;
     return new PaymentRequestStatusResponse(requestId, status, respondedAt);
+  }
+
+  /**
+   * Lists payment requests for a merchant (with optional filtering).
+   */
+  @PreAuthorize("hasAnyRole('MERCHANT','CONDUCTOR')")
+  public MerchantPaymentRequestListResponse listPaymentRequests(
+      UUID conductorId,
+      PaymentReqStatus status,
+      LocalDate dateFrom,
+      LocalDate dateTo,
+      int page,
+      int size
+  ) {
+    int resolvedPage = Math.max(page, 0);
+    int resolvedSize = size > 0 && size <= 50 ? size : 20;
+    Pageable pageable = PageRequest.of(resolvedPage, resolvedSize);
+
+    LocalDateTime start = dateFrom != null ? dateFrom.atStartOfDay() : LocalDate.of(1970, 1, 1).atStartOfDay();
+    LocalDateTime end = dateTo != null ? dateTo.plusDays(1).atStartOfDay()
+        : LocalDateTime.of(9999, 12, 31, 23, 59, 59);
+
+    Page<PaymentRequest> result = status != null
+        ? paymentRequestRepository.findForConductorBetweenWithStatus(conductorId, status, start, end, pageable)
+        : paymentRequestRepository.findForConductorBetween(conductorId, start, end, pageable);
+
+    List<MerchantPaymentRequestResponse> items = result.getContent().stream().map(req ->
+        new MerchantPaymentRequestResponse(
+            req.getRequestId() != null ? req.getRequestId().toString() : null,
+            req.getPassenger() != null ? PhoneUtils.mask(req.getPassenger().getPhone()) : null,
+            req.getAmountKc(),
+            moneyConversionService.formatUsd(req.getAmountKc()),
+            req.getStatus() != null ? req.getStatus().name() : null,
+            req.getCreatedAt() != null ? req.getCreatedAt().toString() : null,
+            req.getExpiresAt() != null ? req.getExpiresAt().toString() : null,
+            req.getRespondedAt() != null ? req.getRespondedAt().toString() : null,
+            req.getRouteId() != null ? req.getRouteId().toString() : null
+        )).toList();
+
+    return new MerchantPaymentRequestListResponse(items, resolvedPage, resolvedSize, result.getTotalElements());
+  }
+
+  /**
+   * Gets a single payment request (merchant).
+   */
+  @PreAuthorize("hasAnyRole('MERCHANT','CONDUCTOR')")
+  public MerchantPaymentRequestResponse getPaymentRequest(UUID conductorId, String requestId) {
+    PaymentRequest paymentRequest = paymentRequestRepository.findByRequestIdAndConductorUserId(
+            UUID.fromString(requestId), conductorId)
+        .orElseThrow(() -> new ResourceNotFoundException("Request not found"));
+
+    return new MerchantPaymentRequestResponse(
+        paymentRequest.getRequestId() != null ? paymentRequest.getRequestId().toString() : null,
+        paymentRequest.getPassenger() != null ? PhoneUtils.mask(paymentRequest.getPassenger().getPhone()) : null,
+        paymentRequest.getAmountKc(),
+        moneyConversionService.formatUsd(paymentRequest.getAmountKc()),
+        paymentRequest.getStatus() != null ? paymentRequest.getStatus().name() : null,
+        paymentRequest.getCreatedAt() != null ? paymentRequest.getCreatedAt().toString() : null,
+        paymentRequest.getExpiresAt() != null ? paymentRequest.getExpiresAt().toString() : null,
+        paymentRequest.getRespondedAt() != null ? paymentRequest.getRespondedAt().toString() : null,
+        paymentRequest.getRouteId() != null ? paymentRequest.getRouteId().toString() : null
+    );
+  }
+
+  /**
+   * Cancels a payment request (merchant).
+   */
+  @PreAuthorize("hasAnyRole('MERCHANT','CONDUCTOR')")
+  @Transactional(isolation = Isolation.READ_COMMITTED)
+  public CancelPaymentRequestResponse cancelPaymentRequest(String requestId, UUID conductorId, String idempotencyKey) {
+    if (idempotencyKey != null) {
+      Optional<CancelPaymentRequestResponse> cached = idempotencyService.get(
+          "koini:idempotency:" + idempotencyKey, CancelPaymentRequestResponse.class);
+      if (cached.isPresent()) {
+        return cached.get();
+      }
+    }
+
+    PaymentRequest paymentRequest = paymentRequestRepository.findByRequestIdAndConductorUserId(
+            UUID.fromString(requestId), conductorId)
+        .orElseThrow(() -> new ResourceNotFoundException("Request not found"));
+
+    if (paymentRequest.getStatus() == PaymentReqStatus.PENDING
+        && paymentRequest.getExpiresAt() != null
+        && paymentRequest.getExpiresAt().isBefore(LocalDateTime.now())) {
+      paymentRequest.setStatus(PaymentReqStatus.EXPIRED);
+      paymentRequest.setRespondedAt(LocalDateTime.now());
+      paymentRequestRepository.save(paymentRequest);
+    } else if (paymentRequest.getStatus() == PaymentReqStatus.PENDING) {
+      paymentRequest.setStatus(PaymentReqStatus.CANCELLED);
+      paymentRequest.setRespondedAt(LocalDateTime.now());
+      paymentRequestRepository.save(paymentRequest);
+      redisService.set("koini:req:" + paymentRequest.getRequestId(), "CANCELLED",
+          Duration.ofSeconds(KoiniConstants.PAYMENT_REQUEST_TTL_SECONDS));
+      if (paymentRequest.getPassenger() != null) {
+        smsService.sendGenericAlert(paymentRequest.getPassenger().getPhone(),
+            "Payment request cancelled: " + paymentRequest.getRequestId());
+      }
+    }
+
+    CancelPaymentRequestResponse response = new CancelPaymentRequestResponse(
+        paymentRequest.getRequestId().toString(),
+        paymentRequest.getStatus().name()
+    );
+
+    if (idempotencyKey != null) {
+      idempotencyService.store("koini:idempotency:" + idempotencyKey, response,
+          Duration.ofHours(KoiniConstants.IDEMPOTENCY_TTL_HOURS));
+    }
+    return response;
   }
 
   private PaymentCode findPaymentCode(String code) {

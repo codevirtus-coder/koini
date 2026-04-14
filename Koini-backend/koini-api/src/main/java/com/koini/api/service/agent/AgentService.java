@@ -2,9 +2,9 @@ package com.koini.api.service.agent;
 
 import com.koini.api.dto.response.DailySummaryResponse;
 import com.koini.api.dto.response.FloatBalanceResponse;
+import com.koini.api.service.money.MoneyConversionService;
 import com.koini.core.domain.entity.Agent;
 import com.koini.core.domain.enums.TransactionType;
-import com.koini.core.domain.valueobject.MoneyUtils;
 import com.koini.core.exception.ResourceNotFoundException;
 import com.koini.persistence.repository.AgentRepository;
 import com.koini.persistence.repository.TransactionRepository;
@@ -17,10 +17,16 @@ public class AgentService {
 
   private final AgentRepository agentRepository;
   private final TransactionRepository transactionRepository;
+  private final MoneyConversionService moneyConversionService;
 
-  public AgentService(AgentRepository agentRepository, TransactionRepository transactionRepository) {
+  public AgentService(
+      AgentRepository agentRepository,
+      TransactionRepository transactionRepository,
+      MoneyConversionService moneyConversionService
+  ) {
     this.agentRepository = agentRepository;
     this.transactionRepository = transactionRepository;
+    this.moneyConversionService = moneyConversionService;
   }
 
   /**
@@ -30,7 +36,7 @@ public class AgentService {
   public FloatBalanceResponse getFloatBalance(UUID agentUserId) {
     Agent agent = agentRepository.findByUserUserId(agentUserId)
         .orElseThrow(() -> new ResourceNotFoundException("Agent not found"));
-    return new FloatBalanceResponse(agent.getFloatBalanceKc(), MoneyUtils.formatUsd(agent.getFloatBalanceKc()));
+    return new FloatBalanceResponse(agent.getFloatBalanceKc(), moneyConversionService.formatUsd(agent.getFloatBalanceKc()));
   }
 
   /**
@@ -41,6 +47,6 @@ public class AgentService {
     long topups = transactionRepository.sumByTypeTodayForInitiator(agentUserId, TransactionType.TOPUP);
     long withdrawals = transactionRepository.sumByTypeTodayForInitiator(agentUserId, TransactionType.WITHDRAWAL);
     return new DailySummaryResponse(topups, withdrawals,
-        MoneyUtils.formatUsd(topups), MoneyUtils.formatUsd(withdrawals));
+        moneyConversionService.formatUsd(topups), moneyConversionService.formatUsd(withdrawals));
   }
 }

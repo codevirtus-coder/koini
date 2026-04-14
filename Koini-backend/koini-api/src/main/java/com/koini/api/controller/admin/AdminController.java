@@ -205,6 +205,15 @@ public class AdminController {
     return ResponseEntity.ok(ApiResponse.success("activated", requestId));
   }
 
+  @Operation(summary = "Activate user (legacy POST)", description = "Legacy alias for activate user")
+  @PostMapping("/users/{id}/activate")
+  public ResponseEntity<ApiResponse<?>> activateUserPost(
+      @PathVariable("id") String id,
+      HttpServletRequest httpRequest,
+      @RequestHeader(value = "X-Request-ID", required = false) String requestId) {
+    return activateUser(id, httpRequest, requestId);
+  }
+
   @Operation(summary = "Transactions", description = "List all transactions")
   @GetMapping("/transactions")
   public ResponseEntity<ApiResponse<Page<TransactionResponse>>> transactions(

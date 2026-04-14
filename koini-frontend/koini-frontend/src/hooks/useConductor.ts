@@ -4,10 +4,8 @@ import { ENDPOINTS } from '../api/endpoints';
 import type { ApiResponse } from '../api/types';
 
 export interface ShiftReport {
-  fares: number;
-  revenueKc: number;
-  activeSince: string;
-  recentFares: Array<{ reference: string; time: string; passenger: string; amount: string }>;
+  totalEarningsKc: number;
+  totalEarningsUsd: string;
 }
 
 export function useConductorShiftReport(options?: { enabled?: boolean }) {

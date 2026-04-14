@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { cn } from '../../design/cn';
-import { formatUsd, formatKc } from '../../utils/money';
+import { formatKc, KC_TO_USD } from '../../utils/money';
 
 interface FareSelectorProps {
   fares: number[];
@@ -12,6 +12,26 @@ interface FareSelectorProps {
 }
 
 export function FareSelector({ fares, value, onSelect, onCustom }: FareSelectorProps): JSX.Element {
+  const [customValue, setCustomValue] = useState<string>(value.toString());
+  const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setCustomValue(value.toString());
+    }
+  }, [value, isEditing]);
+
+  const formatUsdCompact = (amountKc: number): string => {
+    const usd = amountKc * KC_TO_USD;
+    const small = usd > 0 && usd < 0.01;
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: small ? 3 : 2,
+      maximumFractionDigits: small ? 4 : 2,
+    }).format(usd);
+  };
+
   return (
     <div className="space-y-3">
       <div className="grid sm:grid-cols-2 gap-3">
@@ -27,7 +47,7 @@ export function FareSelector({ fares, value, onSelect, onCustom }: FareSelectorP
             >
               {formatKc(fare)}
               <span className={cn('text-xs ml-2', isActive ? 'text-white/80' : 'text-text-secondary')}>
-                {formatUsd(fare)}
+                {formatUsdCompact(fare)}
               </span>
             </Button>
           );
@@ -36,8 +56,21 @@ export function FareSelector({ fares, value, onSelect, onCustom }: FareSelectorP
       <Input
         label="Custom Amount"
         type="number"
-        value={value}
-        onChange={(e) => onCustom(Number(e.target.value))}
+        value={customValue}
+        onFocus={() => setIsEditing(true)}
+        onBlur={() => {
+          setIsEditing(false);
+          if (customValue === '') {
+            setCustomValue('0');
+            onCustom(0);
+          }
+        }}
+        onChange={(e) => {
+          const next = e.target.value;
+          setCustomValue(next);
+          if (next === '') return;
+          onCustom(Number(next));
+        }}
         fullWidth={false}
         containerClassName="max-w-xs"
       />

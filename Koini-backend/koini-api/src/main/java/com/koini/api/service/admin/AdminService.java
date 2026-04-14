@@ -11,6 +11,7 @@ import com.koini.api.dto.response.UserSummaryResponse;
 import com.koini.api.mapper.TransactionMapper;
 import com.koini.api.mapper.UserMapper;
 import com.koini.api.service.AuditService;
+import com.koini.api.service.money.MoneyConversionService;
 import com.koini.core.domain.entity.Agent;
 import com.koini.core.domain.entity.Route;
 import com.koini.core.domain.entity.Transaction;
@@ -21,7 +22,6 @@ import com.koini.core.domain.enums.PaymentCodeStatus;
 import com.koini.core.domain.enums.UserRole;
 import com.koini.core.domain.enums.UserStatus;
 import com.koini.core.domain.enums.WalletStatus;
-import com.koini.core.domain.valueobject.MoneyUtils;
 import com.koini.core.exception.ResourceNotFoundException;
 import com.koini.persistence.repository.AgentRepository;
 import com.koini.persistence.repository.AuditLogRepository;
@@ -55,6 +55,7 @@ public class AdminService {
   private final UserMapper userMapper;
   private final TransactionMapper transactionMapper;
   private final AuditService auditService;
+  private final MoneyConversionService moneyConversionService;
 
   public AdminService(
       UserRepository userRepository,
@@ -67,7 +68,8 @@ public class AdminService {
       AuditLogRepository auditLogRepository,
       UserMapper userMapper,
       TransactionMapper transactionMapper,
-      AuditService auditService
+      AuditService auditService,
+      MoneyConversionService moneyConversionService
   ) {
     this.userRepository = userRepository;
     this.walletRepository = walletRepository;
@@ -80,6 +82,7 @@ public class AdminService {
     this.userMapper = userMapper;
     this.transactionMapper = transactionMapper;
     this.auditService = auditService;
+    this.moneyConversionService = moneyConversionService;
   }
 
   /**
@@ -96,7 +99,7 @@ public class AdminService {
     long activeCodes = paymentCodeRepository.countByStatus(PaymentCodeStatus.PENDING);
     long flagged = userRepository.countByStatus(UserStatus.SUSPENDED) + userRepository.countByStatus(UserStatus.LOCKED);
     return new DashboardResponse(passengers, conductors, agents, totalBalance,
-        MoneyUtils.formatUsd(totalBalance), transactionsToday, volumeToday, activeCodes, flagged);
+        moneyConversionService.formatUsd(totalBalance), transactionsToday, volumeToday, activeCodes, flagged);
   }
 
   /**
@@ -175,7 +178,7 @@ public class AdminService {
               tx.getTxId().toString(),
               tx.getTxType().name(),
               tx.getAmountKc(),
-              MoneyUtils.formatUsd(tx.getAmountKc()),
+              moneyConversionService.formatUsd(tx.getAmountKc()),
               tx.getStatus().name(),
               tx.getCreatedAt() != null ? tx.getCreatedAt().toString() : null))
           .toList();
@@ -297,7 +300,7 @@ public class AdminService {
             agent.getUser().getUserId().toString(),
             agent.getBusinessName(),
             agent.getFloatBalanceKc(),
-            MoneyUtils.formatUsd(agent.getFloatBalanceKc()),
+            moneyConversionService.formatUsd(agent.getFloatBalanceKc()),
             agent.getStatus().name()))
         .toList();
   }
@@ -309,7 +312,7 @@ public class AdminService {
         route.getOrigin(),
         route.getDestination(),
         route.getFareKc(),
-        MoneyUtils.formatUsd(route.getFareKc()),
+        moneyConversionService.formatUsd(route.getFareKc()),
         route.isActive());
   }
 }

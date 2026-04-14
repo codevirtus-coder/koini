@@ -12,6 +12,7 @@ import type {
   MerchantKycApplication,
   PaginatedResponse,
   ReconciliationReport,
+  UserSummary,
 } from '../api/types';
 
 export function useAdminDashboard() {
@@ -51,6 +52,30 @@ export function useAdminMerchantKycApplication(userId: string, enabled: boolean)
   });
 }
 
+export function usePendingMerchants() {
+  return useQuery({
+    queryKey: ['admin-merchant-pending'],
+    queryFn: () =>
+      apiClient
+        .get<ApiResponse<UserSummary[]>>(ENDPOINTS.admin.pendingMerchants)
+        .then((r) => r.data.data),
+  });
+}
+
+export function useApproveMerchant() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) =>
+      apiClient.post<ApiResponse<Record<string, unknown>>>(ENDPOINTS.admin.approveMerchant(userId)).then((r) => r.data.data),
+    onSuccess: (_data, userId) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-merchant-pending'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-user', userId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-merchant-kyc', userId] });
+    },
+  });
+}
+
 export function useAdminAgents() {
   return useQuery({
     queryKey: ['admin-agents'],
@@ -80,6 +105,7 @@ export function useSuspendUser() {
     onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       queryClient.invalidateQueries({ queryKey: ['admin-user', id] });
+      queryClient.invalidateQueries({ queryKey: ['admin-merchant-kyc', id] });
     },
   });
 }
@@ -91,6 +117,7 @@ export function useActivateUser() {
     onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       queryClient.invalidateQueries({ queryKey: ['admin-user', id] });
+      queryClient.invalidateQueries({ queryKey: ['admin-merchant-kyc', id] });
     },
   });
 }

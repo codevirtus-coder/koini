@@ -11,6 +11,7 @@ import com.koini.api.dto.response.WalletBalanceResponse;
 import com.koini.api.mapper.TransactionMapper;
 import com.koini.api.mapper.WalletMapper;
 import com.koini.api.service.AuditService;
+import com.koini.api.service.money.MoneyConversionService;
 import com.koini.api.service.auth.AuthService;
 import com.koini.core.domain.entity.Agent;
 import com.koini.core.domain.entity.Transaction;
@@ -20,7 +21,6 @@ import com.koini.core.domain.enums.AuditOutcome;
 import com.koini.core.domain.enums.TransactionStatus;
 import com.koini.core.domain.enums.TransactionType;
 import com.koini.core.domain.enums.UserRole;
-import com.koini.core.domain.valueobject.MoneyUtils;
 import com.koini.core.domain.valueobject.PhoneUtils;
 import com.koini.core.exception.AgentFloatExceededException;
 import com.koini.core.exception.InsufficientBalanceException;
@@ -57,6 +57,7 @@ public class WalletService {
   private final AuthService authService;
   private final SmsService smsService;
   private final AuditService auditService;
+  private final MoneyConversionService moneyConversionService;
 
   public WalletService(
       WalletRepository walletRepository,
@@ -67,7 +68,8 @@ public class WalletService {
       TransactionMapper transactionMapper,
       AuthService authService,
       SmsService smsService,
-      AuditService auditService
+      AuditService auditService,
+      MoneyConversionService moneyConversionService
   ) {
     this.walletRepository = walletRepository;
     this.transactionRepository = transactionRepository;
@@ -78,6 +80,7 @@ public class WalletService {
     this.authService = authService;
     this.smsService = smsService;
     this.auditService = auditService;
+    this.moneyConversionService = moneyConversionService;
   }
 
   /**
@@ -110,7 +113,8 @@ public class WalletService {
     Wallet passengerWallet = walletRepository.findByUserIdForUpdate(passenger.getUserId())
         .orElseThrow(() -> new WalletNotFoundException("Passenger wallet not found"));
 
-    passengerWallet.setBalanceKc(passengerWallet.getBalanceKc() + request.amountKc());
+    passengerWallet.setPoints(passengerWallet.getPoints() + request.amountKc());
+    passengerWallet.setBalanceKc(passengerWallet.getPoints());
     agent.setFloatBalanceKc(agent.getFloatBalanceKc() - request.amountKc());
 
     String reference = generateReference("TOPUP");
@@ -135,7 +139,7 @@ public class WalletService {
         tx.getTxId().toString(),
         reference,
         request.amountKc(),
-        MoneyUtils.formatUsd(request.amountKc()),
+        moneyConversionService.formatUsd(request.amountKc()),
         passengerWallet.getBalanceKc(),
         PhoneUtils.mask(passenger.getPhone()));
   }
@@ -165,11 +169,14 @@ public class WalletService {
     walletRepository.findById(ordered.get(0).getWalletId());
     walletRepository.findById(ordered.get(1).getWalletId());
 
-    if (fromWallet.getBalanceKc() < request.amountKc()) {
+    if (fromWallet.getPoints() < request.amountKc()) {
       throw new InsufficientBalanceException("Insufficient balance");
     }
-    fromWallet.setBalanceKc(fromWallet.getBalanceKc() - request.amountKc());
-    toWallet.setBalanceKc(toWallet.getBalanceKc() + request.amountKc());
+    fromWallet.setPoints(fromWallet.getPoints() - request.amountKc());
+    fromWallet.setBalanceKc(fromWallet.getPoints());
+
+    toWallet.setPoints(toWallet.getPoints() + request.amountKc());
+    toWallet.setBalanceKc(toWallet.getPoints());
 
     String reference = generateReference("TRANSFER");
     Transaction tx = Transaction.builder()
@@ -186,15 +193,15 @@ public class WalletService {
     transactionRepository.save(tx);
 
     smsService.sendGenericAlert(fromWallet.getUser().getPhone(),
-        "Sent " + MoneyUtils.formatUsd(request.amountKc()) + " to " + PhoneUtils.mask(toUser.getPhone()));
+        "Sent " + moneyConversionService.formatUsd(request.amountKc()) + " to " + PhoneUtils.mask(toUser.getPhone()));
     smsService.sendGenericAlert(toUser.getPhone(),
-        "Received " + MoneyUtils.formatUsd(request.amountKc()) + " from " + PhoneUtils.mask(fromWallet.getUser().getPhone()));
+        "Received " + moneyConversionService.formatUsd(request.amountKc()) + " from " + PhoneUtils.mask(fromWallet.getUser().getPhone()));
 
     return new TransferResponse(
         tx.getTxId().toString(),
         reference,
         request.amountKc(),
-        MoneyUtils.formatUsd(request.amountKc()),
+        moneyConversionService.formatUsd(request.amountKc()),
         PhoneUtils.mask(toUser.getPhone()),
         fromWallet.getBalanceKc());
   }
@@ -212,7 +219,8 @@ public class WalletService {
     Page<Transaction> pageResult = transactionRepository
         .findByFromWalletOrToWalletOrderByCreatedAtDesc(wallet, wallet, pageable);
     List<TransactionResponse> responses = transactionMapper.toResponseList(pageResult.getContent());
-    return new TransactionHistoryResponse(responses, page, size, pageResult.getTotalElements());
+    WalletBalanceResponse balance = walletMapper.toBalanceResponse(wallet);
+    return new TransactionHistoryResponse(balance, responses, page, size, pageResult.getTotalElements());
   }
 
   private String generateReference(String prefix) {

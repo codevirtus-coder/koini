@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Outlet } from 'react-router-dom';
-import { Home, Ticket, Send, List, ShieldCheck } from 'lucide-react';
+import { Home, Ticket, Send, List, ShieldCheck, ClipboardList } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import type { NavItem } from '../../components/layout/Sidebar';
 import { useAuth } from '../../hooks/useAuth';
@@ -21,7 +21,8 @@ export default function ConductorLayout(): JSX.Element {
     return [
       { path: '/merchant/dashboard', label: 'Dashboard', icon: Home },
       { path: '/merchant/redeem', label: 'Redeem', icon: Ticket },
-      { path: '/merchant/request', label: 'Request', icon: Send },
+      { path: '/merchant/request', label: 'New Request', icon: Send },
+      { path: '/merchant/requests', label: 'All Requests', icon: ClipboardList },
       { path: '/merchant/transactions', label: 'Transactions', icon: List },
     ];
   }, [isPending]);

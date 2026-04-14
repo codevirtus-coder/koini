@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams } from 'react-router-dom';
@@ -93,12 +93,24 @@ export default function TopUpPage(): JSX.Element {
   const {
     register,
     handleSubmit,
-    watch,
+    setValue,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(pesepayTopupInitiateSchema), defaultValues });
 
-  const watchedAmount = watch('amountKc');
+  const [amountUsd, setAmountUsd] = useState<string>(() => {
+    const initial = Number(formatUsd(100).replace(/[^0-9.]/g, '')) || 0.01;
+    return initial.toString();
+  });
   const kcPerUsd = useMemo(() => Math.round(1 / KC_TO_USD), []);
+  const parsedUsd = useMemo(() => {
+    const value = Number(amountUsd);
+    return Number.isFinite(value) ? value : 0;
+  }, [amountUsd]);
+  const calculatedKc = useMemo(() => Math.max(0, Math.round((parsedUsd || 0) / KC_TO_USD)), [parsedUsd]);
+
+  useEffect(() => {
+    setValue('amountKc', calculatedKc, { shouldValidate: true, shouldDirty: true });
+  }, [calculatedKc, setValue]);
 
   const openPesepayWindow = (url: string): void => {
     if (pesepayWindowRef.current && !pesepayWindowRef.current.closed) {
@@ -241,25 +253,26 @@ export default function TopUpPage(): JSX.Element {
     <div className="space-y-6">
       <PageHeader title="Top Up" subtitle="Add KC to your wallet using Pesepay." />
 
-      <div className="bg-surface-card border border-surface-border rounded-2xl p-6 max-w-2xl">
-        <div className="text-xs uppercase tracking-wider text-text-muted">Current Wallet</div>
-        {walletLoading ? (
-          <div className="mt-3 text-sm text-text-secondary">Loading...</div>
-        ) : (
-          <div className="mt-3">
-            <div className="text-2xl font-bold text-text-primary">{walletBalance?.balanceUsd ?? '$0.00'}</div>
-            <div className="text-sm text-text-secondary">
-              {walletBalance ? `${formatKc(walletBalance.balanceKc)} KC (${formatUsd(walletBalance.balanceKc)})` : '—'}
-            </div>
+      <div className="grid items-start gap-6 lg:grid-cols-[1fr,1.2fr]">
+        <div className="bg-surface-card border border-surface-border rounded-2xl p-6 h-fit">
+          <div className="text-xs uppercase tracking-wider text-text-muted">Current Wallet</div>
+          {walletLoading ? (
+            <div className="mt-3 text-sm text-text-secondary">Loading...</div>
+          ) : (
+            <div className="mt-3">
+              <div className="text-2xl font-bold text-text-primary">{walletBalance?.balanceUsd ?? '$0.00'}</div>
+              <div className="text-sm text-text-secondary">
+                {walletBalance ? `${formatKc(walletBalance.balanceKc)} KC (${formatUsd(walletBalance.balanceKc)})` : '—'}
+              </div>
             {walletBalance?.points != null && (
-              <div className="text-xs text-text-secondary mt-1">Tokens: {walletBalance.points.toLocaleString()}</div>
+              <div className="text-xs text-text-secondary mt-1">Bank Koins: {walletBalance.points.toLocaleString()}</div>
             )}
-          </div>
-        )}
-      </div>
+            </div>
+          )}
+        </div>
 
-      {!pending ? (
-        <div className="bg-surface-card border border-surface-border rounded-2xl p-6 max-w-2xl space-y-5">
+        {!pending ? (
+          <div className="bg-surface-card border border-surface-border rounded-2xl p-6 space-y-5">
           <Alert
             variant="info"
             title="How it works"
@@ -275,17 +288,25 @@ export default function TopUpPage(): JSX.Element {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input
-              label="Amount (KC)"
+              label="Amount (USD)"
               type="number"
-              error={errors.amountKc?.message}
-              {...register('amountKc', { valueAsNumber: true })}
+              min="0"
+              step="0.01"
+              value={amountUsd}
+              onChange={(e) => setAmountUsd(e.target.value)}
             />
-            <div className="text-xs text-text-secondary">
-              Rate: 1 USD = <span className="text-text-primary font-semibold">{kcPerUsd.toLocaleString()} KC</span>
+            <div className="rounded-xl border border-surface-border bg-surface-bg/60 px-4 py-3 text-sm text-text-secondary">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-xs uppercase tracking-wider text-text-muted">You’ll receive</div>
+                <div className="text-text-primary font-semibold">
+                  {formatKc(calculatedKc)} KC ({calculatedKc.toLocaleString()} Bank Koins)
+                </div>
+              </div>
+              <div className="mt-1 text-xs text-text-muted">
+                {formatUsd(calculatedKc)} • Rate: 1 USD = {kcPerUsd.toLocaleString()} KC
+              </div>
             </div>
-            <div className="text-sm text-text-secondary">
-              You are topping up: <span className="text-text-primary font-semibold">{formatKc(Number(watchedAmount || 0))} KC</span> ({formatUsd(Number(watchedAmount || 0))})
-            </div>
+            <input type="hidden" {...register('amountKc', { valueAsNumber: true })} />
             <Select
               label="Currency"
               options={[
@@ -294,13 +315,16 @@ export default function TopUpPage(): JSX.Element {
               error={errors.currencyCode?.message}
               {...register('currencyCode')}
             />
+            {errors.amountKc?.message && (
+              <div className="text-xs text-danger-500">{errors.amountKc.message}</div>
+            )}
             <Button type="submit" size="lg" isLoading={initiate.isPending} fullWidth>
               Continue to Pesepay
             </Button>
           </form>
-        </div>
-      ) : (
-        <div className="bg-surface-card border border-surface-border rounded-2xl p-6 max-w-2xl space-y-5">
+          </div>
+        ) : (
+          <div className="bg-surface-card border border-surface-border rounded-2xl p-6 space-y-5">
           <Alert
             variant="warning"
             title="Top up pending"
@@ -330,7 +354,7 @@ export default function TopUpPage(): JSX.Element {
               title={lastConfirm.paid ? 'Payment confirmed' : 'Not paid yet'}
               description={
                 lastConfirm.paid
-                  ? `Status: ${lastConfirm.status} • Credited: ${lastConfirm.amountKcCredited ?? 0} KC • Tokens: ${lastConfirm.pointsAdded ?? 0}`
+                  ? `Status: ${lastConfirm.status} • Credited: ${lastConfirm.amountKcCredited ?? 0} KC`
                   : `Status: ${lastConfirm.status}`
               }
             />
@@ -353,8 +377,10 @@ export default function TopUpPage(): JSX.Element {
               Start New
             </Button>
           </div>
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+

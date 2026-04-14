@@ -24,6 +24,7 @@ import RequestPaymentPage from './pages/conductor/RequestPaymentPage';
 import ConductorTransactions from './pages/conductor/TransactionsPage';
 import ShiftReportPage from './pages/conductor/ShiftReportPage';
 import MerchantOnboardingPage from './pages/conductor/MerchantOnboardingPage';
+import RequestsPage from './pages/conductor/RequestsPage';
 
 import AgentLayout from './pages/agent/AgentLayout';
 import AgentDashboard from './pages/agent/DashboardPage';
@@ -37,6 +38,7 @@ import AdminDashboard from './pages/admin/DashboardPage';
 import UsersPage from './pages/admin/users/UsersPage';
 import UserDetailPage from './pages/admin/users/UserDetailPage';
 import CreateUserPage from './pages/admin/users/CreateUserPage';
+import PendingMerchantsPage from './pages/admin/merchants/PendingMerchantsPage';
 import AdminTransactions from './pages/admin/transactions/TransactionsPage';
 import RoutesPage from './pages/admin/routes/RoutesPage';
 import CreateRoutePage from './pages/admin/routes/CreateRoutePage';
@@ -124,6 +126,7 @@ export default function App(): JSX.Element {
           <Route path="onboarding" element={<MerchantOnboardingPage />} />
           <Route path="redeem" element={<RedeemCodePage />} />
           <Route path="request" element={<RequestPaymentPage />} />
+          <Route path="requests" element={<RequestsPage />} />
           <Route path="transactions" element={<ConductorTransactions />} />
           <Route path="shift" element={<ShiftReportPage />} />
         </Route>
@@ -159,6 +162,7 @@ export default function App(): JSX.Element {
           <Route path="users" element={<UsersPage />} />
           <Route path="users/:id" element={<UserDetailPage />} />
           <Route path="users/create" element={<CreateUserPage />} />
+          <Route path="merchants" element={<PendingMerchantsPage />} />
           <Route path="transactions" element={<AdminTransactions />} />
           <Route path="routes" element={<RoutesPage />} />
           <Route path="routes/create" element={<CreateRoutePage />} />

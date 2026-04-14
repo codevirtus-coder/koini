@@ -46,7 +46,7 @@ management:
 
 koini:
   money:
-    kc-per-usd: ${KOINI_KC_PER_USD:100}
+    kc-per-usd: ${KOINI_KC_PER_USD:10000}
   jwt:
     secret: ${KOINI_JWT_SECRET}
     access-token-ttl-ms: 900000

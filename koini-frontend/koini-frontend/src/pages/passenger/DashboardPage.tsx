@@ -27,9 +27,8 @@ export default function DashboardPage(): JSX.Element {
           </div>
           <div className="mt-4">
             <div className="text-3xl font-bold">{balance?.balanceUsd ?? '$0.00'}</div>
-            <div className="text-sm opacity-80">{balance ? `${balance.balanceKc}` : '0'}</div>
             {balance?.points != null && (
-              <div className="text-xs opacity-80 mt-1">Tokens: {balance.points.toLocaleString()}</div>
+              <div className="text-xs opacity-80 mt-1">Bank Koins: {balance.points.toLocaleString()}</div>
             )}
           </div>
           <div className="mt-4 flex gap-2">

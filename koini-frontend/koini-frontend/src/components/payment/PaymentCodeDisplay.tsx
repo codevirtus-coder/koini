@@ -11,11 +11,12 @@ interface PaymentCodeDisplayProps {
   code: string;
   expiresAt: string;
   amountKc: number;
+  feeKc?: number;
   onExpire?: () => void;
   onNewCode?: () => void;
 }
 
-export function PaymentCodeDisplay({ code, expiresAt, amountKc, onExpire, onNewCode }: PaymentCodeDisplayProps): JSX.Element {
+export function PaymentCodeDisplay({ code, expiresAt, amountKc, feeKc = 0, onExpire, onNewCode }: PaymentCodeDisplayProps): JSX.Element {
   const { secondsLeft, percentage, isExpired, isWarning, isUrgent } = useCountdown(expiresAt);
 
   useEffect(() => {
@@ -51,7 +52,13 @@ export function PaymentCodeDisplay({ code, expiresAt, amountKc, onExpire, onNewC
           ))}
         </div>
         <div className="text-sm text-text-secondary">Show this to the merchant</div>
-        <div className="text-lg font-bold text-text-primary">{formatKc(amountKc)} ({formatUsd(amountKc)})</div>
+        <div className="text-xs uppercase tracking-wider text-text-muted">Fare amount</div>
+        <div className="text-lg font-bold text-text-primary">{formatKc(amountKc)} KC • {formatUsd(amountKc)}</div>
+        {feeKc > 0 && (
+          <div className="text-xs text-text-secondary">
+            Service fee: {formatKc(feeKc)} KC • Total charged: {formatKc(amountKc + feeKc)} KC • {formatUsd(amountKc + feeKc)}
+          </div>
+        )}
       </div>
       <div className="flex gap-2">
         <Button variant="outline" onClick={handleCopy}>Copy Code</Button>

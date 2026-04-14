@@ -4,6 +4,7 @@ import com.koini.api.dto.request.ReverseWithdrawalRequest;
 import com.koini.api.dto.request.WithdrawalRequest;
 import com.koini.api.dto.response.WithdrawalResponse;
 import com.koini.api.service.AuditService;
+import com.koini.api.service.money.MoneyConversionService;
 import com.koini.core.domain.entity.Agent;
 import com.koini.core.domain.entity.Transaction;
 import com.koini.core.domain.entity.User;
@@ -11,7 +12,6 @@ import com.koini.core.domain.entity.Wallet;
 import com.koini.core.domain.enums.AuditOutcome;
 import com.koini.core.domain.enums.TransactionStatus;
 import com.koini.core.domain.enums.TransactionType;
-import com.koini.core.domain.valueobject.MoneyUtils;
 import com.koini.core.domain.valueobject.PhoneUtils;
 import com.koini.core.exception.AgentInsufficientCashException;
 import com.koini.core.exception.InsufficientBalanceException;
@@ -40,6 +40,7 @@ public class WithdrawalService {
   private final TransactionRepository transactionRepository;
   private final SmsService smsService;
   private final AuditService auditService;
+  private final MoneyConversionService moneyConversionService;
 
   public WithdrawalService(
       WalletRepository walletRepository,
@@ -47,7 +48,8 @@ public class WithdrawalService {
       AgentRepository agentRepository,
       TransactionRepository transactionRepository,
       SmsService smsService,
-      AuditService auditService
+      AuditService auditService,
+      MoneyConversionService moneyConversionService
   ) {
     this.walletRepository = walletRepository;
     this.userRepository = userRepository;
@@ -55,6 +57,7 @@ public class WithdrawalService {
     this.transactionRepository = transactionRepository;
     this.smsService = smsService;
     this.auditService = auditService;
+    this.moneyConversionService = moneyConversionService;
   }
 
   /**
@@ -75,17 +78,18 @@ public class WithdrawalService {
     if (dailySum + request.amountKc() > KoiniConstants.WITHDRAW_DAILY_LIMIT_KC) {
       throw new ResourceNotFoundException("Daily withdrawal limit exceeded");
     }
-    if (wallet.getBalanceKc() < request.amountKc()) {
+    if (wallet.getPoints() < request.amountKc()) {
       throw new InsufficientBalanceException("Insufficient balance");
     }
     Agent agent = agentRepository.findByUserUserId(agentUserId)
         .orElseThrow(() -> new ResourceNotFoundException("Agent not found"));
-    BigDecimal amountUsd = MoneyUtils.toUsd(request.amountKc());
+    BigDecimal amountUsd = moneyConversionService.toUsd(request.amountKc());
     if (agent.getCashHeldUsd().compareTo(amountUsd) < 0) {
       throw new AgentInsufficientCashException("Agent cash insufficient");
     }
 
-    wallet.setBalanceKc(wallet.getBalanceKc() - request.amountKc());
+    wallet.setPoints(wallet.getPoints() - request.amountKc());
+    wallet.setBalanceKc(wallet.getPoints());
     agent.setCashHeldUsd(agent.getCashHeldUsd().subtract(amountUsd));
 
     String reference = "WD-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 4);
@@ -104,7 +108,7 @@ public class WithdrawalService {
     return new WithdrawalResponse(
         tx.getTxId().toString(),
         request.amountKc(),
-        MoneyUtils.formatUsd(request.amountKc()),
+        moneyConversionService.formatUsd(request.amountKc()),
         tx.getStatus().name(),
         LocalDateTime.now().plusMinutes(10).toString());
   }
@@ -148,13 +152,14 @@ public class WithdrawalService {
       throw new ResourceNotFoundException("Reversal window expired");
     }
     Wallet wallet = tx.getFromWallet();
-    wallet.setBalanceKc(wallet.getBalanceKc() + tx.getAmountKc());
+    wallet.setPoints(wallet.getPoints() + tx.getAmountKc());
+    wallet.setBalanceKc(wallet.getPoints());
     Agent agent = agentRepository.findByUserUserId(agentUserId)
         .orElseThrow(() -> new ResourceNotFoundException("Agent not found"));
-    agent.setCashHeldUsd(agent.getCashHeldUsd().add(MoneyUtils.toUsd(tx.getAmountKc())));
+    agent.setCashHeldUsd(agent.getCashHeldUsd().add(moneyConversionService.toUsd(tx.getAmountKc())));
     tx.setStatus(TransactionStatus.REVERSED);
     smsService.sendGenericAlert(wallet.getUser().getPhone(),
-        "Withdrawal of " + MoneyUtils.formatUsd(tx.getAmountKc()) + " reversed. Reason: " + request.reason());
+        "Withdrawal of " + moneyConversionService.formatUsd(tx.getAmountKc()) + " reversed. Reason: " + request.reason());
     auditService.log("WITHDRAWAL_REVERSED", agentUserId, "AGENT", "Transaction",
         tx.getTxId().toString(), null, tx, AuditOutcome.SUCCESS, httpRequest);
   }

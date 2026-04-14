@@ -56,4 +56,64 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
       @Param("type") TransactionType type,
       @Param("start") LocalDateTime start,
       @Param("end") LocalDateTime end);
+
+  @Query("SELECT COUNT(t) FROM Transaction t "
+      + "WHERE t.txType = :type AND t.initiatedBy.userId = :userId "
+      + "AND t.createdAt >= :start AND t.createdAt < :end")
+  long countByTypeForInitiatorBetween(@Param("userId") UUID userId,
+      @Param("type") TransactionType type,
+      @Param("start") LocalDateTime start,
+      @Param("end") LocalDateTime end);
+
+  @Query("SELECT MIN(t.createdAt) FROM Transaction t "
+      + "WHERE t.txType = :type AND t.initiatedBy.userId = :userId "
+      + "AND t.createdAt >= :start AND t.createdAt < :end")
+  LocalDateTime minCreatedAtByTypeForInitiatorBetween(@Param("userId") UUID userId,
+      @Param("type") TransactionType type,
+      @Param("start") LocalDateTime start,
+      @Param("end") LocalDateTime end);
+
+  @Query("SELECT MAX(t.createdAt) FROM Transaction t "
+      + "WHERE t.txType = :type AND t.initiatedBy.userId = :userId "
+      + "AND t.createdAt >= :start AND t.createdAt < :end")
+  LocalDateTime maxCreatedAtByTypeForInitiatorBetween(@Param("userId") UUID userId,
+      @Param("type") TransactionType type,
+      @Param("start") LocalDateTime start,
+      @Param("end") LocalDateTime end);
+
+  @Query("SELECT COALESCE(SUM(t.amountKc), 0) FROM Transaction t "
+      + "WHERE t.txType = :type AND t.status = 'COMPLETED' "
+      + "AND t.toWallet.user.userId = :userId "
+      + "AND t.createdAt >= :start AND t.createdAt < :end")
+  long sumByTypeForToWalletBetween(@Param("userId") UUID userId,
+      @Param("type") TransactionType type,
+      @Param("start") LocalDateTime start,
+      @Param("end") LocalDateTime end);
+
+  @Query("SELECT COUNT(t) FROM Transaction t "
+      + "WHERE t.txType = :type AND t.status = 'COMPLETED' "
+      + "AND t.toWallet.user.userId = :userId "
+      + "AND t.createdAt >= :start AND t.createdAt < :end")
+  long countByTypeForToWalletBetween(@Param("userId") UUID userId,
+      @Param("type") TransactionType type,
+      @Param("start") LocalDateTime start,
+      @Param("end") LocalDateTime end);
+
+  @Query("SELECT MIN(t.createdAt) FROM Transaction t "
+      + "WHERE t.txType = :type AND t.status = 'COMPLETED' "
+      + "AND t.toWallet.user.userId = :userId "
+      + "AND t.createdAt >= :start AND t.createdAt < :end")
+  LocalDateTime minCreatedAtByTypeForToWalletBetween(@Param("userId") UUID userId,
+      @Param("type") TransactionType type,
+      @Param("start") LocalDateTime start,
+      @Param("end") LocalDateTime end);
+
+  @Query("SELECT MAX(t.createdAt) FROM Transaction t "
+      + "WHERE t.txType = :type AND t.status = 'COMPLETED' "
+      + "AND t.toWallet.user.userId = :userId "
+      + "AND t.createdAt >= :start AND t.createdAt < :end")
+  LocalDateTime maxCreatedAtByTypeForToWalletBetween(@Param("userId") UUID userId,
+      @Param("type") TransactionType type,
+      @Param("start") LocalDateTime start,
+      @Param("end") LocalDateTime end);
 }

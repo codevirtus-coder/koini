@@ -2,14 +2,20 @@ package com.koini.api.mapper;
 
 import com.koini.api.dto.response.AdminUserDetailResponse;
 import com.koini.api.dto.response.UserSummaryResponse;
+import com.koini.api.service.money.MoneyConversionService;
 import com.koini.core.domain.entity.User;
 import com.koini.core.domain.entity.Wallet;
-import com.koini.core.domain.valueobject.MoneyUtils;
 import com.koini.core.domain.valueobject.PhoneUtils;
 import org.springframework.stereotype.Component;
 
 @Component
 public class UserMapper {
+
+  private final MoneyConversionService moneyConversionService;
+
+  public UserMapper(MoneyConversionService moneyConversionService) {
+    this.moneyConversionService = moneyConversionService;
+  }
 
   public UserSummaryResponse toSummary(User user) {
     if (user == null) {
@@ -38,10 +44,9 @@ public class UserMapper {
       response.setWallet(new AdminUserDetailResponse.WalletSummary(
           wallet.getWalletId().toString(),
           wallet.getBalanceKc(),
-          MoneyUtils.formatUsd(wallet.getBalanceKc()),
+          moneyConversionService.formatUsd(wallet.getBalanceKc()),
           wallet.getStatus().name()));
     }
     return response;
   }
 }
-

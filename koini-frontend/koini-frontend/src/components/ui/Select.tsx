@@ -14,19 +14,15 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   containerClassName?: string;
 }
 
-export function Select({
-  label,
-  options,
-  error,
-  fullWidth = true,
-  containerClassName,
-  className,
-  ...props
-}: SelectProps): JSX.Element {
+export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(function Select(
+  { label, options, error, fullWidth = true, containerClassName, className, ...props },
+  ref
+): JSX.Element {
   return (
     <div className={cn(fullWidth ? 'w-full' : 'min-w-[220px]', containerClassName)}>
       {label && <label className="block text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">{label}</label>}
       <select
+        ref={ref}
         className={cn(
           'bg-surface-bg border border-surface-borderMd rounded-lg px-4 py-3 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary-500',
           fullWidth ? 'w-full' : 'w-auto min-w-[220px]',
@@ -44,4 +40,4 @@ export function Select({
       {error && <p className="text-xs text-danger-500 mt-1">{error}</p>}
     </div>
   );
-}
+});

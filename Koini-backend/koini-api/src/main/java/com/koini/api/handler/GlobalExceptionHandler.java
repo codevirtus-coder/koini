@@ -35,6 +35,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -197,6 +198,12 @@ public class GlobalExceptionHandler {
   public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex,
       HttpServletRequest request) {
     return build(HttpStatus.BAD_REQUEST, "REQ_005", ex.getMessage(), request, null, false);
+  }
+
+  @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+  public ResponseEntity<ErrorResponse> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex,
+      HttpServletRequest request) {
+    return build(HttpStatus.METHOD_NOT_ALLOWED, "REQ_006", ex.getMessage(), request, null, false);
   }
 
   @ExceptionHandler(ConstraintViolationException.class)

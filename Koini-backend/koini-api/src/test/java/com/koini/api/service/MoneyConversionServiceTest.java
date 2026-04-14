@@ -29,6 +29,6 @@ class MoneyConversionServiceTest {
     MoneyConversionService service = new MoneyConversionService(properties);
 
     assertThat(service.toUsd(100)).isEqualByComparingTo(new BigDecimal("0.01"));
+    assertThat(service.formatUsd(100)).isEqualTo("$0.01");
   }
 }
-

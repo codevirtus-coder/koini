@@ -1,6 +1,7 @@
 package com.koini.api.service.ussd;
 
 import com.koini.api.service.auth.AuthService;
+import com.koini.api.service.money.MoneyConversionService;
 import com.koini.core.domain.entity.PaymentCode;
 import com.koini.core.domain.entity.Transaction;
 import com.koini.core.domain.entity.User;
@@ -37,6 +38,7 @@ public class UssdService {
   private final PaymentCodeRepository paymentCodeRepository;
   private final RedisService redisService;
   private final AuthService authService;
+  private final MoneyConversionService moneyConversionService;
   private final double feeRate;
 
   public UssdService(
@@ -46,6 +48,7 @@ public class UssdService {
       PaymentCodeRepository paymentCodeRepository,
       RedisService redisService,
       AuthService authService,
+      MoneyConversionService moneyConversionService,
       @Value("${koini.fees.payment-rate}") double feeRate
   ) {
     this.userRepository = userRepository;
@@ -54,6 +57,7 @@ public class UssdService {
     this.paymentCodeRepository = paymentCodeRepository;
     this.redisService = redisService;
     this.authService = authService;
+    this.moneyConversionService = moneyConversionService;
     this.feeRate = feeRate;
   }
 
@@ -94,11 +98,11 @@ public class UssdService {
         return "CON Enter amount (KC):";
       }
       long amountKc = amountForChoice(choice);
-      return "CON Confirm: Pay " + MoneyUtils.formatUsd(amountKc) + "? 1.Yes  2.No";
+      return "CON Confirm: Pay " + moneyConversionService.formatUsd(amountKc) + "? 1.Yes  2.No";
     }
     if (parts.length == 4 && "4".equals(parts[2])) {
       long amountKc = Long.parseLong(parts[3]);
-      return "CON Confirm: Pay " + MoneyUtils.formatUsd(amountKc) + "? 1.Yes  2.No";
+      return "CON Confirm: Pay " + moneyConversionService.formatUsd(amountKc) + "? 1.Yes  2.No";
     }
     if (parts.length == 4 && !"4".equals(parts[2])) {
       if ("2".equals(parts[3])) {
@@ -131,7 +135,7 @@ public class UssdService {
         .stream().findFirst()
         .map(tx -> tx.getCreatedAt() != null ? tx.getCreatedAt().toString() : "-")
         .orElse("-");
-    return "END Balance: " + wallet.getBalanceKc() + " KC (" + MoneyUtils.formatUsd(wallet.getBalanceKc())
+    return "END Balance: " + wallet.getBalanceKc() + " KC (" + moneyConversionService.formatUsd(wallet.getBalanceKc())
         + "). Last: " + lastDate;
   }
 
@@ -161,7 +165,7 @@ public class UssdService {
     Wallet wallet = walletRepository.findByUserIdForUpdate(user.getUserId())
         .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
     long fee = MoneyUtils.calculateFee(amountKc, feeRate);
-    if (wallet.getBalanceKc() < amountKc + fee) {
+    if (wallet.getPoints() < amountKc + fee) {
       throw new InsufficientBalanceException("Insufficient balance");
     }
     String code = String.valueOf(new java.security.SecureRandom().nextInt(900000) + 100000);
@@ -188,11 +192,13 @@ public class UssdService {
         .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
     Wallet toWallet = walletRepository.findByUserIdForUpdate(toUser.getUserId())
         .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
-    if (fromWallet.getBalanceKc() < amountKc) {
+    if (fromWallet.getPoints() < amountKc) {
       throw new InsufficientBalanceException("Insufficient balance");
     }
-    fromWallet.setBalanceKc(fromWallet.getBalanceKc() - amountKc);
-    toWallet.setBalanceKc(toWallet.getBalanceKc() + amountKc);
+    fromWallet.setPoints(fromWallet.getPoints() - amountKc);
+    fromWallet.setBalanceKc(fromWallet.getPoints());
+    toWallet.setPoints(toWallet.getPoints() + amountKc);
+    toWallet.setBalanceKc(toWallet.getPoints());
     String reference = "TR-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 4);
     Transaction tx = Transaction.builder()
         .txType(TransactionType.TRANSFER)

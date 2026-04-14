@@ -42,6 +42,15 @@ export const ENDPOINTS = {
     routes: `${import.meta.env.VITE_MERCHANT_API_PREFIX || '/conductor'}/routes`,
     onboarding: `${import.meta.env.VITE_MERCHANT_API_PREFIX || '/conductor'}/onboarding`,
   },
+  merchant: {
+    dashboardSummary: `${import.meta.env.VITE_MERCHANT_API_PREFIX || '/conductor'}/dashboard/summary`,
+    paymentRequests: `${import.meta.env.VITE_MERCHANT_API_PREFIX || '/conductor'}/payments/requests`,
+    paymentRequest: (id: string) => `${import.meta.env.VITE_MERCHANT_API_PREFIX || '/conductor'}/payments/request/${id}`,
+    cancelPaymentRequest: (id: string) =>
+      `${import.meta.env.VITE_MERCHANT_API_PREFIX || '/conductor'}/payments/request/${id}/cancel`,
+    receipt: (transactionId: string) =>
+      `${import.meta.env.VITE_MERCHANT_API_PREFIX || '/conductor'}/transactions/${transactionId}/receipt`,
+  },
   agent: {
     topup: '/agent/topup',
     floatBalance: '/agent/float/balance',
@@ -68,7 +77,10 @@ export const ENDPOINTS = {
     agents: '/admin/agents',
     pesepayIntegration: '/admin/integrations/pesepay',
     pesepaySaveKeys: '/admin/integrations/pesepay/keys',
+    pendingMerchants: '/admin/merchants/pending',
     merchantKycApplication: (userId: string) => `/admin/merchants/${userId}/application`,
     merchantKycDocument: (userId: string, type: 'idDocument' | 'proofOfAddress') => `/admin/merchants/${userId}/documents/${type}`,
+    approveMerchant: (userId: string) => `/admin/merchants/${userId}/approve`,
+    rejectMerchant: (userId: string) => `/admin/merchants/${userId}/reject`,
   },
 } as const;

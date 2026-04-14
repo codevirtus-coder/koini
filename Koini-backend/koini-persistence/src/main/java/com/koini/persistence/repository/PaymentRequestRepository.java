@@ -1,6 +1,7 @@
 package com.koini.persistence.repository;
 
 import com.koini.core.domain.entity.PaymentRequest;
+import com.koini.core.domain.enums.PaymentReqStatus;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
@@ -22,6 +23,56 @@ public interface PaymentRequestRepository extends JpaRepository<PaymentRequest, 
   Page<PaymentRequest> findByConductorIdOrderByCreatedAtDesc(@Param("conductorId") UUID conductorId, Pageable pageable);
 
   Page<PaymentRequest> findByConductorUserIdOrderByCreatedAtDesc(UUID conductorId, Pageable pageable);
+
+  Optional<PaymentRequest> findByRequestIdAndConductorUserId(UUID requestId, UUID conductorId);
+
+  @Query("SELECT pr FROM PaymentRequest pr "
+      + "WHERE pr.conductor.userId = :conductorId "
+      + "AND pr.createdAt >= :start AND pr.createdAt < :end "
+      + "ORDER BY pr.createdAt DESC")
+  Page<PaymentRequest> findForConductorBetween(
+      @Param("conductorId") UUID conductorId,
+      @Param("start") LocalDateTime start,
+      @Param("end") LocalDateTime end,
+      Pageable pageable);
+
+  @Query("SELECT COUNT(pr) FROM PaymentRequest pr "
+      + "WHERE pr.conductor.userId = :conductorId "
+      + "AND pr.createdAt >= :start AND pr.createdAt < :end")
+  long countForConductorBetween(
+      @Param("conductorId") UUID conductorId,
+      @Param("start") LocalDateTime start,
+      @Param("end") LocalDateTime end);
+
+  @Query("SELECT MAX(pr.createdAt) FROM PaymentRequest pr "
+      + "WHERE pr.conductor.userId = :conductorId "
+      + "AND pr.createdAt >= :start AND pr.createdAt < :end")
+  LocalDateTime maxCreatedAtForConductorBetween(
+      @Param("conductorId") UUID conductorId,
+      @Param("start") LocalDateTime start,
+      @Param("end") LocalDateTime end);
+
+  @Query("SELECT pr FROM PaymentRequest pr "
+      + "WHERE pr.conductor.userId = :conductorId "
+      + "AND pr.status = :status "
+      + "AND pr.createdAt >= :start AND pr.createdAt < :end "
+      + "ORDER BY pr.createdAt DESC")
+  Page<PaymentRequest> findForConductorBetweenWithStatus(
+      @Param("conductorId") UUID conductorId,
+      @Param("status") PaymentReqStatus status,
+      @Param("start") LocalDateTime start,
+      @Param("end") LocalDateTime end,
+      Pageable pageable);
+
+  @Query("SELECT COUNT(pr) FROM PaymentRequest pr "
+      + "WHERE pr.conductor.userId = :conductorId "
+      + "AND pr.status = :status "
+      + "AND pr.createdAt >= :start AND pr.createdAt < :end")
+  long countForConductorBetweenWithStatus(
+      @Param("conductorId") UUID conductorId,
+      @Param("status") PaymentReqStatus status,
+      @Param("start") LocalDateTime start,
+      @Param("end") LocalDateTime end);
 
   @Modifying
   @Query("UPDATE PaymentRequest pr SET pr.status = 'EXPIRED' "

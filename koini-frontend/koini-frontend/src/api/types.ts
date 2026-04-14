@@ -153,6 +153,86 @@ export interface TransactionHistoryFilter {
   size?: number;
 }
 
+export interface TransactionHistoryResponse {
+  transactions: Array<{
+    transactionId: string;
+    type: string;
+    status: string;
+    amountKc: number;
+    amountUsd: string;
+    feeKc: number;
+    feeUsd: string;
+    reference: string;
+    createdAt: string;
+  }>;
+  page: number;
+  size: number;
+  total: number;
+}
+
+export interface MerchantDashboardSummary {
+  wallet: {
+    balanceKc: number;
+    balanceUsd: string;
+    points: number;
+    status: string;
+  };
+  today: {
+    faresCount: number;
+    earningsKc: number;
+    earningsUsd: string;
+    firstFareAt: string | null;
+    lastFareAt: string | null;
+  };
+  requests: {
+    pendingCount: number;
+    lastRequestAt: string | null;
+  };
+  recentTransactions: Array<{
+    transactionId: string;
+    type: string;
+    status: string;
+    amountKc: number;
+    amountUsd: string;
+    feeKc: number;
+    feeUsd: string;
+    reference: string;
+    createdAt: string;
+  }>;
+}
+
+export interface MerchantPaymentRequest {
+  requestId: string;
+  passengerMaskedPhone: string;
+  amountKc: number;
+  amountUsd: string;
+  status: 'PENDING' | 'APPROVED' | 'DECLINED' | 'EXPIRED' | 'CANCELLED';
+  createdAt: string;
+  expiresAt: string;
+  respondedAt: string | null;
+  routeId: string | null;
+}
+
+export interface MerchantPaymentRequestsResponse {
+  requests: MerchantPaymentRequest[];
+  page: number;
+  size: number;
+  total: number;
+}
+
+export interface MerchantReceipt {
+  transactionId: string;
+  reference: string;
+  type: string;
+  status: string;
+  amountKc: number;
+  amountUsd: string;
+  feeKc: number;
+  feeUsd: string;
+  description: string | null;
+  createdAt: string;
+}
+
 export interface GenerateCodeRequest {
   amountKc: number;
   pin: string;
@@ -297,13 +377,18 @@ export interface AdminPesepayIntegrationStatus {
 
 export interface MerchantKycApplication {
   userId: string;
-  businessName: string | null;
-  tradingName: string | null;
-  addressLine1: string | null;
-  city: string | null;
-  country: string | null;
-  idNumberMasked: string | null;
-  submittedAt: string | null;
-  idDocumentUrl?: string | null;
-  proofOfAddressUrl?: string | null;
+  status: UserStatus;
+  merchantDetail: {
+    businessName: string | null;
+    tradingName: string | null;
+    addressLine1: string | null;
+    city: string | null;
+    country: string | null;
+    idNumber: string | null;
+    submittedAt: string | null;
+  };
+  merchantDocuments: {
+    idDocumentUrl: string | null;
+    proofOfAddressUrl: string | null;
+  };
 }

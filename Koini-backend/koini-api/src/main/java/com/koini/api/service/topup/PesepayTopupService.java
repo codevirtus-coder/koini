@@ -120,6 +120,7 @@ public class PesepayTopupService {
         tx.getReference(),
         amountKc,
         amountUsd,
+        moneyConversionService.formatUsd(amountKc, kcPerUsd),
         kcPerUsd,
         pesepay.referenceNumber(),
         pesepay.pollUrl(),
@@ -176,9 +177,9 @@ public class PesepayTopupService {
       amountKcCredited = moneyConversionService.toKc(amountUsdPaid, kcPerUsd);
     }
 
-    long pointsAdded = Math.max(0L, Math.round(amountKcCredited * pointsMultiplier));
-    wallet.setBalanceKc(wallet.getBalanceKc() + amountKcCredited);
+    long pointsAdded = amountKcCredited;
     wallet.setPoints(wallet.getPoints() + pointsAdded);
+    wallet.setBalanceKc(wallet.getPoints());
 
     tx.setMetadata(objectMapper.valueToTree(enrichMeta(tx.getMetadata(), amountUsdPaid, amountKcCredited, pointsAdded)));
     tx.setStatus(TransactionStatus.COMPLETED);
@@ -303,6 +304,7 @@ public class PesepayTopupService {
       String reference,
       long amountKc,
       BigDecimal amountUsd,
+      String amountUsdFormatted,
       long kcPerUsd,
       String pesepayReferenceNumber,
       String pollUrl,

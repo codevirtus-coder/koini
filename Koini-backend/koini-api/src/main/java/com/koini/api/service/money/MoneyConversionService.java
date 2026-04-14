@@ -3,6 +3,8 @@ package com.koini.api.service.money;
 import com.koini.api.config.MoneyProperties;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.NumberFormat;
+import java.util.Locale;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -44,5 +46,14 @@ public class MoneyConversionService {
         .multiply(BigDecimal.valueOf(kcPerUsd))
         .setScale(0, RoundingMode.HALF_UP)
         .longValue();
+  }
+
+  public String formatUsd(long amountKc) {
+    return formatUsd(amountKc, properties.getKcPerUsd());
+  }
+
+  public String formatUsd(long amountKc, long kcPerUsd) {
+    NumberFormat format = NumberFormat.getCurrencyInstance(Locale.US);
+    return format.format(toUsd(amountKc, kcPerUsd));
   }
 }
